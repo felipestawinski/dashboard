@@ -1,19 +1,13 @@
 import platform
 import os
-import matplotlib.pyplot as plt
 from tkinter import *
 from tkinter import ttk
 import psutil
-from PIL import ImageTk, Image
-from matplotlib.animation import FuncAnimation
-from matplotlib import animation
 import customtkinter
 from time import sleep
 import cpuinfo
 from datetime import datetime
 import threading
-import time
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
 # Conversão em Bytes
@@ -122,6 +116,7 @@ texto_botao6 = StringVar()
 janela_atual = -1
 janela_anterior = -1
 encerrar = 0
+flag_tabela = 0
 
 
 # Informações gerais do Sistema
@@ -134,7 +129,8 @@ def infoSistema():
         texto2.set(f"Sistema Operacional: {sistema_operacional}")
         texto3.set(f"Versão do Sistema Operacional: {versao_so}")
         texto4.set(f"Arquitetura do Processador: {arquitetura_cpu}")
-        texto5.set(f"Horário do Boot do Sistema: {bt.day}/{bt.month}/{bt.year} {bt.hour}:{bt.minute}:{bt.second}")
+        texto5.set(
+            f"Horário do Boot do Sistema: {bt.day}/{bt.month}/{bt.year} {bt.hour:02}:{bt.minute:02}:{bt.second:02}")
         texto6.set("")
         janela_atual = 0
         if janela_anterior == 1:
@@ -150,7 +146,8 @@ def infoSistema():
 # Inicializa o texto sobre o uso da CPU
 percentual_cpu = customtkinter.CTkLabel(janela, text=f"\rUso da CPU: {psutil.cpu_percent()}%", font=fonte_padrao)
 percentual_por_cpu = customtkinter.CTkLabel(janela,
-                                            text=f"Uso de cada núcleo da CPU: {psutil.cpu_percent(interval=1, percpu=True)}")
+                                            text=f"Uso de cada núcleo da CPU: "
+                                                 f"{psutil.cpu_percent(interval=1, percpu=True)}")
 
 
 # Atualização do uso da CPU
@@ -199,7 +196,9 @@ def infoCPU():
 
 
 # Inicializa o texto sobre o uso da RAM
-percentual_uso_ram = customtkinter.CTkLabel(janela, text=f"\rUso de RAM: {get_size(psutil.virtual_memory().used)} ({psutil.virtual_memory().percent}%)",
+percentual_uso_ram = customtkinter.CTkLabel(janela,
+                                            text=f"\rUso de RAM: {get_size(psutil.virtual_memory().used)} "
+                                                 f"({psutil.virtual_memory().percent}%)",
                                             font=fonte_padrao)
 percentual_disponivel_ram = customtkinter.CTkLabel(janela, text=f"\rUso de RAM: {psutil.virtual_memory().available}%",
                                                    font=fonte_padrao)
@@ -208,7 +207,8 @@ percentual_disponivel_ram = customtkinter.CTkLabel(janela, text=f"\rUso de RAM: 
 # Atualização do uso da RAM
 def atualiza_uso_ram():
     while janela_atual == 2:
-        percentual_uso_ram.configure(text=f"\rUso de RAM: {get_size(psutil.virtual_memory().used)} ({psutil.virtual_memory().percent}%)")
+        percentual_uso_ram.configure(
+            text=f"\rUso de RAM: {get_size(psutil.virtual_memory().used)} ({psutil.virtual_memory().percent}%)")
         sleep(0.1)
         if encerrar == 1:
             break
@@ -225,7 +225,8 @@ def atualiza_disponivel_ram():
 
 # Inicializa o texto sobre o uso da SWAP
 percentual_uso_swap = customtkinter.CTkLabel(janela,
-                                             text=f"\rUso de Memória SWAP: {get_size(psutil.swap_memory().used)} ({psutil.swap_memory().percent}%)",
+                                             text=f"\rUso de Memória SWAP: {get_size(psutil.swap_memory().used)} "
+                                                  f"({psutil.swap_memory().percent}%)",
                                              font=fonte_padrao)
 percentual_disponivel_swap = customtkinter.CTkLabel(janela,
                                                     text=f"\rMemória SWAP disponível: {psutil.swap_memory().free}",
@@ -296,7 +297,8 @@ def infoHD():
         texto2.set(f"Armazenamento total: {', '.join(nome_discos)} [{', '.join(armazenamento_total)}]")
         texto3.set(f"Armazenamento livre: {', '.join(nome_discos)} [{', '.join(armazenamento_disponivel)}]")
         texto4.set(
-            f"Armazenamento utilizado: {', '.join(nome_discos)} [{', '.join(armazenamento_utilizado)}] ({armazenamento_usado_percentual}%)")
+            f"Armazenamento utilizado: {', '.join(nome_discos)} [{', '.join(armazenamento_utilizado)}] "
+            f"({armazenamento_usado_percentual}%)")
         texto5.set("")
         texto6.set("")
         janela_atual = 3
@@ -310,70 +312,104 @@ def infoHD():
             percentual_uso_swap.configure(text="")
 
 
-# def atualiza_processos():
-#     while flag_tabela == 1:
-#         linha = 0
-#         for proc in psutil.process_iter(['username', 'name', 'pid']):
-#             if psutil.pid_exists(proc.pid) == False:
-#                 try:
-#                     meus_processos.insert(parent='', index='end', iid=linha, text='',
-#                                           values=(proc.pid, proc.name(), proc.username()))
-#                 except:
-#                     meus_processos.insert(parent='', index='end', iid=linha, text='',
-#                                           values=(proc.pid, proc.name(), "SISTEMA"))
-#                 linha = linha + 1
-#         meus_processos.pack()
+def sort():
+    rows = [(int(meus_processos.set(item, 'pid')), int(item)) for item in meus_processos.get_children('')]
+    rows.sort()
+
+    for index, (values, item) in enumerate(rows):
+        meus_processos.move(str(item), '', index)
+        if flag_tabela == 0:
+            break
+
+
+def atualiza_processos():
+    global linha
+    mudou = 0
+    while flag_tabela == 1:
+        for proc in psutil.process_iter(['username', 'name', 'pid']):
+            if not meus_processos.exists(str(proc.pid)) and flag_tabela == 1:
+                try:
+                    meus_processos.insert(parent='', index='end', iid=str(proc.pid), text='',
+                                          values=(proc.pid, proc.name(), proc.username()))
+                except:
+                    meus_processos.insert(parent='', index='end', iid=str(proc.pid), text='',
+                                          values=(proc.pid, proc.name(), "SISTEMA"))
+                linha = linha + 1
+                mudou = 1
+        for processo in meus_processos.get_children():
+            if not psutil.pid_exists(int(processo)) and flag_tabela == 1:
+                meus_processos.delete(processo)
+                linha = linha - 1
+                mudou = 1
+        if mudou == 1 and flag_tabela == 1:
+            sort()
+            mudou = 0
+        sleep(2)
 
 
 # Informações sobre os Processos
 def infoProcessos():
-    # t6 = threading.Thread(target=atualiza_processos)
     global flag_tabela
-    flag_tabela = 1
-    janela_processos = customtkinter.CTkToplevel(janela)
-    janela_processos.geometry("800x300")
-    # janela_processos.resizable(False, False)
-    janela_processos.title("Processos")
-    tabela_processos = Frame(janela_processos)
-    tabela_processos.pack()
-
-    tabela_scroll = Scrollbar(tabela_processos, orient='vertical')
-    tabela_scroll.pack(side=RIGHT, fill=Y)
-
-    # tabela_scroll = Scrollbar(tabela_processos, orient='horizontal')
-    # tabela_scroll.pack(side=BOTTOM, fill=X)
-
+    global janela_processos
     global meus_processos
-    meus_processos = ttk.Treeview(tabela_processos, yscrollcommand=tabela_scroll.set, xscrollcommand=tabela_scroll.set)
-    meus_processos.pack()
+    global tabela_processos
+    if flag_tabela == 0:
+        t6 = threading.Thread(target=atualiza_processos)
+        janela_processos = customtkinter.CTkToplevel(janela)
+        janela_processos.geometry("800x300")
+        janela_processos.resizable(False, False)
+        janela_processos.title("Processos")
+        tabela_processos = Frame(janela_processos)
+        tabela_processos.pack()
 
-    tabela_scroll.config(command=meus_processos.yview)
-    # tabela_scroll.config(command=meus_processos.xview)
+        tabela_scroll = Scrollbar(tabela_processos, orient='vertical')
+        tabela_scroll.pack(side=RIGHT, fill=Y)
 
-    meus_processos['columns'] = ('pid', 'nome', 'usuário')
+        # tabela_scroll = Scrollbar(tabela_processos, orient='horizontal')
+        # tabela_scroll.pack(side=BOTTOM, fill=X)
 
-    meus_processos.column("#0", width=0, stretch=NO)
-    meus_processos.column("pid", anchor=CENTER, width=200)
-    meus_processos.column("nome", anchor=CENTER, width=200)
-    meus_processos.column("usuário", anchor=CENTER, width=200)
+        meus_processos = ttk.Treeview(tabela_processos, yscrollcommand=tabela_scroll.set,
+                                      xscrollcommand=tabela_scroll.set)
+        meus_processos.pack()
 
-    meus_processos.heading("#0", text="", anchor=CENTER)
-    meus_processos.heading("pid", text="PID", anchor=CENTER)
-    meus_processos.heading("nome", text="Nome", anchor=CENTER)
-    meus_processos.heading("usuário", text="Usuário", anchor=CENTER)
+        tabela_scroll.config(command=meus_processos.yview)
+        # tabela_scroll.config(command=meus_processos.xview)
 
-    linha = 0
-    for proc in psutil.process_iter(['username', 'name', 'pid']):
-        try:
-            meus_processos.insert(parent='', index='end', iid=linha, text='',
-                                  values=(proc.pid, proc.name(), proc.username()))
-        except:
-            meus_processos.insert(parent='', index='end', iid=linha, text='', values=(proc.pid, proc.name(), "SISTEMA"))
-        linha = linha + 1
-    meus_processos.pack()
+        meus_processos['columns'] = ('pid', 'nome', 'usuário')
+
+        meus_processos.column("#0", width=0, stretch=NO)
+        meus_processos.column("pid", anchor=CENTER, width=200)
+        meus_processos.column("nome", anchor=CENTER, width=200)
+        meus_processos.column("usuário", anchor=CENTER, width=200)
+
+        meus_processos.heading("#0", text="", anchor=CENTER)
+        meus_processos.heading("pid", text="PID", anchor=CENTER)
+        meus_processos.heading("nome", text="Nome", anchor=CENTER)
+        meus_processos.heading("usuário", text="Usuário", anchor=CENTER)
+
+        global linha
+        linha = 0
+        for proc in psutil.process_iter(['username', 'name', 'pid']):
+            try:
+                meus_processos.insert(parent='', index='end', iid=str(proc.pid), text='',
+                                      values=(proc.pid, proc.name(), proc.username()))
+            except:
+                meus_processos.insert(parent='', index='end', iid=str(proc.pid), text='',
+                                      values=(proc.pid, proc.name(), "SISTEMA"))
+            linha = linha + 1
+        meus_processos.pack()
+
+        flag_tabela = 1
+        t6.start()
 
 
-    # t6.start()
+        def fechar_janela_processos():
+            global flag_tabela
+            flag_tabela = 0
+            tabela_processos.destroy()
+            janela_processos.destroy()
+
+        janela_processos.protocol("WM_DELETE_WINDOW", fechar_janela_processos)
 
 
 # Inicialização das informações principais
@@ -403,44 +439,6 @@ info4.grid(column=0, row=4)
 
 info5 = customtkinter.CTkLabel(janela, textvariable=texto5, font=fonte_padrao)
 info5.grid(column=0, row=5)
-
-'''
-def animacaoCPU():
-    animCPU = animation.FuncAnimation(figura, atualizaCPU, interval=100)
-
-def animacaoRAM():
-    animRAM = animation.FuncAnimation(fig, atualizaRAM, frames=100)
-'''
-# fig = plt.figure()
-# grafico = fig.add_subplot(111)
-# inicio = time.time()
-#
-# x = []
-# y = []
-
-# def atualizaCPU(i):
-# t.append(time.time() - inicio)
-# s.append(float(psutil.cpu_percent()))
-# grafico.plot(x, y, "-k")
-# plt.xlabel("Tempo (s)")
-# plt.ylabel("Uso da CPU (%)")
-# plt.title("Uso da CPU em função do tempo")
-# if len(x) >= 10 or len(y) >= 10:
-#      x.remove(x[0])
-#      y.remove(y[0])
-'''
-def atualizaRAM(i):
-    t.append(time.time() - inicio)
-    s.append(float(psutil.virtual_memory().percent))
-    grafico.plot(x, y, "-k")
-    plt.xlabel("Tempo (s)")
-    plt.ylabel("Uso da RAM (%)")
-    plt.title("Uso da RAM em função do tempo")
-    # if len(x) >= 10 or len(y) >= 10:
-    #      x.remove(x[0])
-    #      y.remove(y[0])
-    # print(x[0])
-'''
 
 
 # Funções dos botões
@@ -481,10 +479,8 @@ def funcao_botao5():
         os.startfile('C:\WINDOWS\system32\cmd.exe')
 
 
-def funcao_botao6():
-    print("ABRIR GRAFICO")
-    botao = customtkinter.CTkButton(janela, text="Ver gráfico de CPU", command=teste)
-    botao.place(relx=0.85, rely=0.15, anchor=CENTER)
+# def funcao_botao6():
+#     print("ABRIR GRAFICO")
 
 
 # Inicialização dos botões
@@ -506,35 +502,31 @@ botao4.place(relx=0.85, rely=0.55, anchor=CENTER)
 botao5 = customtkinter.CTkButton(janela, textvariable=texto_botao5, command=lambda: funcao_botao5())
 botao5.place(relx=0.85, rely=0.65, anchor=CENTER)
 
-botao6 = customtkinter.CTkButton(janela, textvariable=texto_botao6, command=lambda: funcao_botao6())
-botao6.place(relx=0.85, rely=0.75, anchor=CENTER)
+
+# botao6 = customtkinter.CTkButton(janela, textvariable=texto_botao6, command=lambda: funcao_botao6())
+# botao6.place(relx=0.85, rely=0.75, anchor=CENTER)
 
 
 # Finalização do programa/Fechar a janela
 def fechar_janela():
     global encerrar
+    global flag_tabela
+    global tabela_processos
     encerrar = 1
+    if flag_tabela == 1:
+        flag_tabela = 0
+        tabela_processos.destroy()
+        janela_processos.destroy()
     botao0.destroy()
     botao1.destroy()
     botao2.destroy()
     botao3.destroy()
     botao4.destroy()
     botao5.destroy()
-    botao6.destroy()
+    # botao6.destroy()
     janela.destroy()
 
 
 janela.protocol("WM_DELETE_WINDOW", fechar_janela)
 
 janela.mainloop()
-
-# psutil.virtual_memory().percent
-# def update():
-#     l.config(text=str(random.random()))
-#     root.after(1000, update)
-#
-# root = Tk()
-# l = tk.Label(text='0')
-# l.pack()
-# root.after(1000, update)
-# root.mainloop()
